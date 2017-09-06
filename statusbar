@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+
+import threading
+import sys
+import json
+import time
+import shutil
+import subprocess
+import locale
+
+def notify(title, text = ''):
+    subprocess.run(['notify-send', title, text])
+
+def handleEvent(event):
+    name = event['name']
+    button = event['button']
+    x = event['x']
+    y = event['y']
+
+    if not name.startswith('-'):
+        try:
+            if button == 1:
+                subprocess.run(['ToggleWork', name])
+            elif button == 3:
+                subprocess.run(['RestartWork', name])
+        except:
+            pass
+            
+    return 0
+
+def stdin_handler():
+    linebuffer = ''
+    # Ignore the streamed array
+    sys.stdin.readline()
+    for line in sys.stdin:
+        linebuffer += line
+        try:
+            event = handleEvent(json.loads(linebuffer.strip(',')))
+            linebuffer = ''
+        except:
+            pass
+    notify('i3bar click handler stopped')
+    return 0
+
+stdin_thread = threading.Thread(target=stdin_handler)
+stdin_thread.start()
+
+firstBlock = False
+def generateBlock(text, color, name):
+    global firstBlock
+    if not firstBlock:
+        print(',')
+    print(json.dumps({'full_text': text, 'color': color, 'name': name, 'separator_block_width': 23,
+                      'markup': 'pango'},
+                     separators=(',',':')), end='')
+    firstBlock = False
+
+# Helper date formatting
+def fTime(seconds, shortStyle = False):
+    workday = int(subprocess.check_output('WorkDay').decode().strip())
+    days = int(seconds / workday)
+    rest = seconds - (days * workday)
+    hours = int(rest / 3600)
+    minutes = int((rest - (hours * 3600)) / 60)
+    seconds = rest - (hours * 3600) - (minutes * 60)
+
+    if shortStyle:
+        if days > 0:
+            return '{}d, {}h {:02d}m'.format(days, hours, minutes)
+        else:
+            return '{}h {:02d}m'.format(hours, minutes)
+    else:
+        if days > 0:
+            return '{}d, {:02d}:{:02d}:{:02d}'.format(days, hours, minutes, seconds)
+        else:
+            return '{:02d}:{:02d}:{:02d}'.format(hours, minutes, seconds)
+
+def generateWork():
+    work_stat = {}
+    visible_work = subprocess.check_output('GetVisibleWork').decode().split()
+    active_work = subprocess.check_output('GetActiveWork').decode().split()
+    for name in visible_work:
+        totalTime = subprocess.check_output(['GetTotalTime', name]).decode().strip()
+        activeTime = subprocess.check_output(['GetTime', name]).decode().strip()
+        work_stat[name] = { 'active': (name in active_work),
+                            'total': int(totalTime),
+                            'time': int(activeTime) }
+    for name, work in work_stat.items():
+        timestr = '{}: {}'.format(name, fTime(work['time'])) if (work['total'] - work['time']) < 2 \
+                  else '{}: {}<span foreground="#555555">/{}</span>'.format(name, fTime(work['time']),
+                                                                     fTime(work['total'], True))
+        generateBlock(timestr, '#00ff00' if work['active'] else '#ff0000', name)
+
+    return 0
+
+def generateDisk():
+    usage = shutil.disk_usage('/')
+    generateBlock('Root: {:.1f} GiB'.format(usage[2] / (1024*1024*1024)), '#ffffff', '-disk')
+    return 0
+
+def generateNIC():
+    internetInfo = subprocess.getoutput('ip -br addr show dev internet').split()
+    lanInfo = subprocess.getoutput('ip -br addr show dev lan').split()
+    if internetInfo[1] == 'UP':
+        generateBlock('internet: {}'.format(internetInfo[2]), '#00ff00', '-internet')
+    else:
+        generateBlock('internet: N/A', '#ff0000', '-internet')
+
+    if lanInfo[1] == 'UP':
+        generateBlock('lan: {}'.format(lanInfo[2]), '#00ff00', '-lan')
+    else:
+        generateBlock('lan: N/A', '#ff0000', '-lan')
+
+    return 0
+
+def generateTime():
+    locale.setlocale(locale.LC_TIME, 'sv_SE')
+    generateBlock(time.strftime('%Y-%m-%d (%a) %H:%M:%S'), '#ffffff', '-time')
+    return 0
+
+def generateStatus():
+    global firstBlock
+    firstBlock = True
+    print('[', end='')
+    generateWork()
+    generateDisk()
+    generateNIC()
+    generateTime()
+    print('],', flush = True)
+
+# Send the initial "header"
+print('{ "version": 1, "click_events": true }')
+print('[')
+
+while True:
+    generateStatus()
+    time.sleep(1)
+
+print(']')

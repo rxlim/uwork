@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+
+import sys
+import work_common
+
+if len(sys.argv) < 2:
+    print('Error: Missing work name')
+    exit(1)
+
+work_name = sys.argv[1]
+
+work_common.report_stop(work_name)

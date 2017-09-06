@@ -1,0 +1,9 @@
+#!/usr/bin/env python3
+
+import sys
+import work_common
+
+work_names = work_common.get_active_work_names()
+
+if work_names:
+    print("\n".join(work_names))

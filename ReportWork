@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+
+import sys
+import work_common
+
+if len(sys.argv) < 2:
+    print('Error: Missing work name and time')
+    exit(1)
+elif len(sys.argv) < 3:
+    print('Error: Missing work time')
+    exit(1)
+
+work_name = sys.argv[1]
+extratime = sys.argv[2]
+
+work_common.report_time(work_name, int(extratime))

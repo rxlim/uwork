@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+
+import sys
+import work_common
+
+
+names = work_common.get_visible_work_names()
+print("\n".join(names))

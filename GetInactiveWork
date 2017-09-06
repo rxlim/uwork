@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+
+import sys
+import work_common
+
+all_work_names = work_common.get_all_work_names()
+work_names = work_common.get_active_work_names()
+
+inactive_work = [x for x in all_work_names if x not in work_names]
+if inactive_work:
+    print("\n".join(inactive_work))
