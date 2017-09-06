@@ -1,2 +1,2 @@
 # uwork
-Tool for keeping track of time + i3bar integration
+Uwork is a tool for logging time. It is a collection of scripts aimed for Linux and requires Python 3.3+.
